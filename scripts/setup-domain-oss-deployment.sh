@@ -24,8 +24,8 @@ NC='\033[0m'
 OS="" PKG_MANAGER="" FIREWALL="" ARCH="" CADDY_OS="" CADDY_BIN="" CADDY_CONF_DIR=""
 DOMAIN="" EMAIL="" ADMIN_EMAIL="" ADMIN_PASSWORD="" ADMIN_PASSWORD_HASH=""
 DNS_PROVIDER_NAME="" DNS_CADDY_MODULE=""
-DNS_TLS_BLOCK="" DNS_ENV_NAME="" DNS_ENV_NAME_EXTRA=""
-DNS_TOKEN="" DNS_TOKEN_EXTRA=""
+DNS_TLS_BLOCK="" DNS_ENV_NAME="" DNS_ENV_NAME_EXTRA="" DNS_ENV_NAME_THIRD=""
+DNS_TOKEN="" DNS_TOKEN_EXTRA="" DNS_TOKEN_THIRD=""
 ENCRYPTION_KEY="" ENCRYPTION_SALT=""
 PROXY_API_KEY="" RUNNER_API_KEY="" SSH_GATEWAY_API_KEY=""
 PGADMIN_EMAIL="" PGADMIN_PASSWORD=""
@@ -163,8 +163,9 @@ collect_input() {
     printf "    4) Google Cloud DNS\n"
     printf "    5) Hetzner\n"
     printf "    6) Namecheap\n"
+    printf "    7) UniFi\n"
     while true; do
-        printf "  Select [1-6]: "; read -r choice
+        printf "  Select [1-7]: "; read -r choice
         case "$choice" in
             1) DNS_PROVIDER_NAME="Cloudflare"
                DNS_CADDY_MODULE="github.com/caddy-dns/cloudflare"
@@ -202,6 +203,16 @@ collect_input() {
         }"
                DNS_ENV_NAME="NAMECHEAP_API_KEY"
                DNS_ENV_NAME_EXTRA="NAMECHEAP_API_USER"; break ;;
+                7) DNS_PROVIDER_NAME="UniFi"
+                    DNS_CADDY_MODULE="github.com/caddy-dns/unifi"
+                    DNS_TLS_BLOCK="dns unifi {
+                api_key {env.UNIFI_API_KEY}
+                base_url {env.UNIFI_BASE_URL}
+                site_id {env.UNIFI_SITE_ID}
+          }"
+                    DNS_ENV_NAME="UNIFI_API_KEY"
+                    DNS_ENV_NAME_EXTRA="UNIFI_BASE_URL"
+                    DNS_ENV_NAME_THIRD="UNIFI_SITE_ID"; break ;;
             *) fail "Invalid choice" ;;
         esac
     done
@@ -215,6 +226,12 @@ collect_input() {
         printf "  %s %s: " "$DNS_PROVIDER_NAME" "$DNS_ENV_NAME_EXTRA"
         read -rs DNS_TOKEN_EXTRA; echo
         [ -z "$DNS_TOKEN_EXTRA" ] && die "Required"
+    fi
+
+    if [ -n "${DNS_ENV_NAME_THIRD:-}" ]; then
+        printf "  %s %s: " "$DNS_PROVIDER_NAME" "$DNS_ENV_NAME_THIRD"
+        read -rs DNS_TOKEN_THIRD; echo
+        [ -z "$DNS_TOKEN_THIRD" ] && die "Required"
     fi
 
     # Email — basic but stricter than just "contains @". Caddy sends this to
@@ -712,6 +729,8 @@ CADDYEOF
     printf '%s=%s\n' "$DNS_ENV_NAME" "$DNS_TOKEN" > "$CADDY_CONF_DIR/environment"
     [ -n "${DNS_ENV_NAME_EXTRA:-}" ] && [ -n "${DNS_TOKEN_EXTRA:-}" ] && \
         printf '%s=%s\n' "$DNS_ENV_NAME_EXTRA" "$DNS_TOKEN_EXTRA" >> "$CADDY_CONF_DIR/environment"
+    [ -n "${DNS_ENV_NAME_THIRD:-}" ] && [ -n "${DNS_TOKEN_THIRD:-}" ] && \
+        printf '%s=%s\n' "$DNS_ENV_NAME_THIRD" "$DNS_TOKEN_THIRD" >> "$CADDY_CONF_DIR/environment"
     chmod 600 "$CADDY_CONF_DIR/environment"
 
     if [ "$OS" = "macos" ]; then

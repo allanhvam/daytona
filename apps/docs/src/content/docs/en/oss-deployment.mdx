@@ -241,6 +241,16 @@ The script opens ports 22, 80, 443, and 2222 on Linux (via ufw or firewalld). If
 
 **Caddy module**: `github.com/caddy-dns/hetzner`
 
+### UniFi DNS
+
+**Credentials**: UniFi requires three values:
+
+- `UNIFI_API_KEY`: API key from UniFi Network Console > Integrations
+- `UNIFI_BASE_URL`: Base URL of the UniFi Network API endpoint, for example `https://your-unifi-controller/proxy/network/integration/v1`
+- `UNIFI_SITE_ID`: UniFi site UUID (you can fetch this from the `/sites` endpoint)
+
+**Caddy module**: `github.com/caddy-dns/unifi`
+
 ## Domain Deployment Troubleshooting
 
 ### Browser redirects to `localhost:5556` during login
