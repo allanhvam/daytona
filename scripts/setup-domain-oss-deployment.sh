@@ -638,13 +638,36 @@ step_caddy_install() {
         systemctl stop caddy 2>/dev/null || true
     fi
     local url="https://caddyserver.com/api/download?os=${CADDY_OS}&arch=${ARCH}&p=${DNS_CADDY_MODULE}"
+    local tmp_download build_dir=""
+    tmp_download="$(mktemp)"
+
+    # Some community modules (e.g. UniFi) are valid Go modules but are no longer
+    # registered in the caddyserver.com download API. Fall back to xcaddy in Docker.
+    if ! curl -fsSL --max-time 600 "$url" -o "$tmp_download"; then
+        rm -f "$tmp_download"
+        build_dir="$(mktemp -d)"
+        docker run --rm \
+            -e GOOS="$CADDY_OS" \
+            -e GOARCH="$ARCH" \
+            -e DNS_MODULE="$DNS_CADDY_MODULE" \
+            -v "$build_dir:/out" \
+            caddy:builder \
+            sh -c 'xcaddy build --output /out/caddy --with "$DNS_MODULE"'
+        [ -s "$build_dir/caddy" ] || return 1
+        tmp_download="$build_dir/caddy"
+    fi
+
     if [ "$OS" = "macos" ]; then
         sudo mkdir -p "$(dirname "$CADDY_BIN")"
-        sudo curl -fsSL --max-time 600 "$url" -o "$CADDY_BIN"
-        sudo chmod +x "$CADDY_BIN"
+        sudo install -m 0755 "$tmp_download" "$CADDY_BIN"
     else
-        curl -fsSL --max-time 600 "$url" -o "$CADDY_BIN"
-        chmod +x "$CADDY_BIN"
+        install -m 0755 "$tmp_download" "$CADDY_BIN"
+    fi
+
+    if [ -n "$build_dir" ]; then
+        rm -rf "$build_dir"
+    else
+        rm -f "$tmp_download"
     fi
 }
 
